@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson Notes Viewer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="toolbar">
+    <button id="prev-btn">◀ Previous</button>
+    <button id="next-btn">Next ▶</button>
+    
+    <!-- New Page Jump Section -->
+    <span id="jump-section" style="margin: 0 15px;">
+        <label for="jump-input" style="color: white; font-size: 14px;">Jump to:</label>
+        <input type="number" id="jump-input" min="1" value="1" style="width: 50px; text-align: center; padding: 4px; border-radius: 4px; border: 1px solid #ccc;">
+        <button id="jump-btn" style="padding: 4px 10px; background-color: #007bff;">Go</button>
+    </span>
+
+    <span id="view-mode-section">
+        <button id="single-view-btn" class="active">1-Page View</button>
+        <button id="dual-view-btn">2-Page View</button>
+    </span>
+    
+    <span id="page-info">Page <span id="page-num">1</span> of <span id="page-count">-</span></span>
+</div>
+
+    <!-- Hidden data anchor to securely pass the dynamic local file path from Flask -->
+    <div id="pdf-metadata" data-url="{{ pdf_url }}" style="display: none;"></div>
+
+    <!-- Target injection node container for the page canvases -->
+    <div id="pdf-container" class="single-page"></div>
+
+    <!-- Load custom javascript explicitly as an ES Module -->
+    <script type="module" src="{{ url_for('static', filename='js/viewer.js') }}"></script>
+</body>
+</html>
+

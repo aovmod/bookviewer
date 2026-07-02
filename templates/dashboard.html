@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <title>PhysLab Dashboard</title>
+        
+        <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f4f6fb;
+        }
+
+        /* Main layout */
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Left contents */
+        .toc-sidebar {
+            background: #111827;
+            color: white;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .toc-sidebar h2 {
+            margin-bottom: 24px;
+            font-size: 22px;
+        }
+
+        .toc-section {
+            margin-bottom: 28px;
+        }
+
+        .toc-section h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #93c5fd;
+        }
+
+        .toc-section a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .toc-section a:hover {
+            background: #2563eb;
+        }
+
+        /* Viewer */
+        .viewer-area {
+            height: 100vh;
+            padding: 16px;
+            min-width: 0;
+        }
+
+        .viewer-area iframe {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 18px;
+            background: white;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        }
+
+        /* Mobile */
+        @media (max-width: 800px) {
+            html,
+            body {
+                overflow: auto;
+            }
+
+            .app-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .toc-sidebar {
+                height: auto;
+            }
+
+            .viewer-area {
+                height: 85vh;
+                padding: 12px;
+            }
+        }
+           
+        </style>
+        
+</head>
+<script>
+function openLesson(url) {
+    document.getElementById("pdfViewer").src = url;
+}
+</script>
+<body>
+
+
+
+<div class="app-layout">
+
+    <!-- LEFT TABLE OF CONTENTS -->
+    <aside class="toc-sidebar">
+  
+
+        {% for file in files %}
+            <div class="toc-section">
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=1')">
+
+                   Physics Textbook
+
+                </a>
+                <h3>📘 First Form Topics</h3>
+
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=3')">
+
+                    Topic 1-Astrophysics
+
+                </a>
+
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=33')">
+
+                    Topic 2-Forces
+
+                </a>
+
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=71')">
+
+                    Topic 3-Waves and Light
+
+                </a>
+
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=109')">
+
+                    Topic 4-Sound
+
+                </a>
+                <h3>📘 Second Form Topics</h3>
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=139')">
+                   
+                    Topic 5-Particle model
+
+                </a>
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=181')">
+
+                    Topic 6-Energy
+
+                </a>
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=225')">
+
+                    Topic 7-Electricity
+
+                </a>
+                <a href="javascript:void(0)"
+
+                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=275')">
+
+                    Topic 8-Magnetism
+
+                </a>
+            </div>
+        {% endfor %}
+    </aside>
+
+    <!-- MAIN PDF VIEWER -->
+    <main class="viewer-area">
+        <iframe
+            id="pdfViewer"
+            src="{% if files %}{{ url_for('view_pdf', filename=files[0]) }}?page=1{% endif %}"
+            title="Lesson Viewer">
+        </iframe>
+    </main>
+
+</div>
+
+
+<script>
+function toggleMenu() {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+}
+</script>
+
+</body>
+</html>
