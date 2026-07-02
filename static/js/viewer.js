@@ -13,6 +13,7 @@ const params = new URLSearchParams(window.location.search);
 let pageNum = parseInt(params.get("page"), 10) || 1;
 
 const container = document.getElementById("pdf-container");
+container.setAttribute("tabindex", "0");
 const metaElement = document.getElementById("pdf-metadata");
 
 // ------------------------------------------------------------
@@ -39,6 +40,7 @@ if (metaElement) {
             pdfDoc = pdf;
             document.getElementById("page-count").textContent = pdfDoc.numPages;
             renderPages();
+            container.focus();
         })
         .catch(err => {
             console.error("PDF.js loading error:", err);
@@ -216,11 +218,15 @@ document
 
 document.addEventListener("keydown", e => {
 
+    if (!pdfDoc) return;
+
     if (e.key === "ArrowLeft") {
+        e.preventDefault();
         previousPage();
     }
 
     if (e.key === "ArrowRight") {
+        e.preventDefault();
         nextPage();
     }
 
@@ -233,15 +239,14 @@ document.addEventListener("keydown", e => {
 let touchStartX = 0;
 let touchEndX = 0;
 
-container.addEventListener("touchstart", e => {
-
+document.addEventListener("touchstart", e => {
     touchStartX = e.changedTouches[0].screenX;
-
 }, { passive: true });
 
-container.addEventListener("touchend", e => {
-
+document.addEventListener("touchend", e => {
     touchEndX = e.changedTouches[0].screenX;
+
+    if (!pdfDoc) return;
 
     const diff = touchStartX - touchEndX;
     const threshold = 60;
@@ -249,9 +254,8 @@ container.addEventListener("touchend", e => {
     if (Math.abs(diff) < threshold) return;
 
     if (diff > 0) {
-        nextPage();       // swipe left
+        nextPage();
     } else {
-        previousPage();   // swipe right
+        previousPage();
     }
-
 }, { passive: true });

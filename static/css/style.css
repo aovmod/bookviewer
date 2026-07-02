@@ -113,4 +113,5 @@ button.active {
 #pdf-container {
     touch-action: pan-y;
     overflow-x: hidden;
+    outline: none;
 }
