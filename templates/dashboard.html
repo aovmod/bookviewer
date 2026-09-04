@@ -1,223 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Viewer Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         
-        <title>PhysLab Dashboard</title>
-        
-        <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-        }
-
-        html,
-        body {
-            width: 100%;
-            height: 100%;
+        /* Deep space backdrop */
+        body { 
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(155, 89, 182, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(52, 152, 219, 0.2) 0%, transparent 40%),
+                linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc; 
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px; 
+            position: relative;
             overflow: hidden;
-            background: #f4f6fb;
         }
 
-        /* Main layout */
-        .app-layout {
-            display: grid;
-            grid-template-columns: 280px minmax(0, 1fr);
-            width: 100vw;
-            height: 100vh;
+        /* Spacetime Grid lines */
+        .bg-grid {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
         }
 
-        /* Left contents */
-        .toc-sidebar {
-            background: #111827;
-            color: white;
-            padding: 24px;
-            overflow-y: auto;
+        /* Safari-safe floating physics elements */
+        .floating-element {
+            position: absolute;
+            font-size: clamp(24px, 4vw, 36px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+            animation: float 6s ease-in-out infinite alternate;
         }
-
-        .toc-sidebar h2 {
-            margin-bottom: 24px;
-            font-size: 22px;
-        }
-
-        .toc-section {
-            margin-bottom: 28px;
-        }
-
-        .toc-section h3 {
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #93c5fd;
-        }
-
-        .toc-section a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 10px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .toc-section a:hover {
-            background: #2563eb;
-        }
-
-        /* Viewer */
-        .viewer-area {
-            height: 100vh;
-            padding: 16px;
-            min-width: 0;
-        }
-
-        .viewer-area iframe {
-            display: block;
-            width: 100%;
-            height: 100%;
-            border: none;
-            border-radius: 18px;
-            background: white;
-            box-shadow: 0 8px 24px rgba(0,0,0,.12);
-        }
-
-        /* Mobile */
-        @media (max-width: 800px) {
-            html,
-            body {
-                overflow: auto;
-            }
-
-            .app-layout {
-                grid-template-columns: 1fr;
-                height: auto;
-                min-height: 100vh;
-            }
-
-            .toc-sidebar {
-                height: auto;
-            }
-
-            .viewer-area {
-                height: 85vh;
-                padding: 12px;
-            }
-        }
-           
-        </style>
         
+        /* Give elements unique positions and slight animation variations */
+        .elem-1 { top: 10%; left: 8%; animation-delay: 0s; }
+        .elem-2 { top: 15%; right: 10%; animation-delay: 1.5s; }
+        .elem-3 { bottom: 15%; left: 12%; animation-delay: 3s; }
+        .elem-4 { bottom: 20%; right: 8%; animation-delay: 4.5s; }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            100% { transform: translateY(12px) rotate(4deg); }
+        }
+        
+        .container { 
+            width: 100%;
+            max-width: 600px; 
+            height: 90vh; 
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1; 
+        }
+        
+        header { margin-bottom: 20px; text-align: center; }
+        
+        h1 { 
+            color: #ffffff; 
+            font-size: 24px; 
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+            font-weight: 800;
+        }
+        
+        .grid { 
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0; 
+        }
+        
+        .card { 
+            background: #ffffff; 
+            color: #1e293b;
+            padding: 25px; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .card-title { font-size: 18px; font-weight: 600; color: #1e1b4b; word-break: break-word; margin-bottom: 16px; border-bottom: 2px dashed #e2e8f0; padding-bottom: 12px;}
+        
+        .chapter-section-title {
+            font-size: 13px;
+            color: #4f46e5;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 18px 0 8px 0;
+            display: flex;
+            align-items: center;
+        }
+        .chapter-section-title::before {
+            content: "✨";
+            margin-right: 6px;
+        }
+        .chapter-section-title:first-of-type {
+            margin-top: 0;
+        }
+
+        .chapter-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 5px;
+            -webkit-overflow-scrolling: touch; /* Butter-smooth scrolling on iOS Safari */
+        }
+        
+        .chapter-link {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #334155;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .chapter-link:hover { 
+            background: #e2e8f0; 
+            border-color: #cbd5e1;
+            transform: translateX(3px);
+        }
+        
+        .chapter-page { 
+            background: #6366f1; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 6px; 
+            font-size: 11px; 
+            font-weight: bold;
+        }
+
+        .btn { 
+            display: block; 
+            text-align: center; 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+            color: white; 
+            padding: 14px; 
+            border-radius: 10px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 16px; 
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            transition: all 0.2s ease; 
+        }
+        .btn:hover { 
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); 
+            transform: translateY(-1px);
+        }
+        .empty { text-align: center; color: #94a3b8; }
+    </style>
 </head>
-<script>
-function openLesson(url) {
-    document.getElementById("pdfViewer").src = url;
-}
-</script>
 <body>
+    <div class="bg-grid"></div>
 
+    <div class="floating-element elem-1">🚀</div>
+    <div class="floating-element elem-2">🪐</div>
+    <div class="floating-element elem-3">⚛️</div>
+    <div class="floating-element elem-4">☄️</div>
 
+    <div class="container">
+        <header>
+            <h1>Prior's Field School Physics Lessons</h1>
+        </header>
+        
+        {% if books %}
+        <div class="grid">
+            {% for book in books %}
+            <div class="card">
+                <div class="card-content">
+                    <div class="card-title"></div>
+                    
+                    <div class="chapter-container">
+                        {% if book.chapters %}
+                            {% for chap in book.chapters %}
+                                
+                                {# Title at the very beginning (before the 1st chapter) #}
+                                {% if loop.first %}
+                                    <h3 class="chapter-section-title">First Form Topics</h3>
+                                {% endif %}
 
-<div class="app-layout">
+                                <a href="{{ url_for('view_pdf', filename=book.filename) }}?page={{ chap.page }}" class="chapter-link">
+                                    <span>📖 {{ chap.title }}</span>
+                                    <span class="chapter-page">p. {{ chap.page }}</span>
+                                </a>
 
-    <!-- LEFT TABLE OF CONTENTS -->
-    <aside class="toc-sidebar">
-  
+                                {# Title right after the 4th chapter #}
+                                {% if loop.index == 4 %}
+                                    <h3 class="chapter-section-title">Second Form Topics</h3>
+                                {% endif %}
 
-        {% for file in files %}
-            <div class="toc-section">
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=1')">
-
-                   Physics Textbook
-
-                </a>
-                <h3>📘 First Form Topics</h3>
-
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=3')">
-
-                    Topic 1-Astrophysics
-
-                </a>
-
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=33')">
-
-                    Topic 2-Forces
-
-                </a>
-
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=71')">
-
-                    Topic 3-Waves and Light
-
-                </a>
-
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=109')">
-
-                    Topic 4-Sound
-
-                </a>
-                <h3>📘 Second Form Topics</h3>
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=139')">
-                   
-                    Topic 5-Particle model
-
-                </a>
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=181')">
-
-                    Topic 6-Energy
-
-                </a>
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=225')">
-
-                    Topic 7-Electricity
-
-                </a>
-                <a href="javascript:void(0)"
-
-                   onclick="openLesson('{{ url_for('view_pdf', filename=file) }}?page=275')">
-
-                    Topic 8-Magnetism
-
-                </a>
+                            {% endfor %}
+                        {% else %}
+                            <p style="font-size: 12px; color: #aaa; padding: 10px 0;">No index bookmarks found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <a href="{{ url_for('view_pdf', filename=book.filename) }}" class="btn">Cover Page</a>
             </div>
-        {% endfor %}
-    </aside>
-
-    <!-- MAIN PDF VIEWER -->
-    <main class="viewer-area">
-        <iframe
-            id="pdfViewer"
-            src="{% if files %}{{ url_for('view_pdf', filename=files[0]) }}?page=1{% endif %}"
-            title="Lesson Viewer">
-        </iframe>
-    </main>
-
-</div>
-
-
-<script>
-function toggleMenu() {
-    document.getElementById("sidebar").classList.toggle("open");
-    document.getElementById("overlay").classList.toggle("show");
-}
-</script>
-
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">
+            <p>No PDFs found. Drop some into your <code>static/lesson_notes</code> folder!</p>
+        </div>
+        {% endif %}
+    </div>
 </body>
 </html>

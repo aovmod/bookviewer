@@ -3,17 +3,21 @@ import * as pdfjsLib from '/static/js/pdf.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdf.worker.mjs';
 
 // ------------------------------------------------------------
-// Application State
+// Application State & URL Parsing (Unified)
 // ------------------------------------------------------------
 
 let pdfDoc = null;
 let isDualView = false;
 
-const params = new URLSearchParams(window.location.search);
-let pageNum = parseInt(params.get("page"), 10) || 1;
+// Safe query string extraction to catch dashboard chapter selections
+const urlParams = new URLSearchParams(window.location.search);
+const targetPage = parseInt(urlParams.get('page'), 10);
+let pageNum = (!isNaN(targetPage) && targetPage > 0) ? targetPage : 1;
 
 const container = document.getElementById("pdf-container");
-container.setAttribute("tabindex", "0");
+if (container) {
+    container.setAttribute("tabindex", "0");
+}
 const metaElement = document.getElementById("pdf-metadata");
 
 // ------------------------------------------------------------
@@ -21,32 +25,36 @@ const metaElement = document.getElementById("pdf-metadata");
 // ------------------------------------------------------------
 
 if (metaElement) {
-
     const pdfUrl = metaElement.getAttribute("data-url");
 
     console.log("PDF URL:", pdfUrl);
 
     if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
         container.innerHTML = `
-            <p style="color:red;text-align:center;">
+            <p style="color:red;text-align:center;padding:20px;">
                 No PDF URL was provided.
             </p>
         `;
-        throw new Error("Missing PDF URL.");
+    } else {
+        pdfjsLib.getDocument({ url: pdfUrl }).promise
+            .then(pdf => {
+                pdfDoc = pdf;
+                
+                // Safety check: ensure target page doesn't exceed total pages
+                if (pageNum > pdfDoc.numPages) {
+                    pageNum = pdfDoc.numPages;
+                }
+                
+                document.getElementById("page-count").textContent = pdfDoc.numPages;
+                renderPages();
+                if (container) container.focus();
+            })
+            .catch(err => {
+                console.error("PDF.js loading error:", err);
+                container.innerHTML = `<p style="color:red;text-align:center;padding:20px;">Failed to load PDF asset.</p>`;
+            });
     }
-
-    pdfjsLib.getDocument({ url: pdfUrl }).promise
-        .then(pdf => {
-            pdfDoc = pdf;
-            document.getElementById("page-count").textContent = pdfDoc.numPages;
-            renderPages();
-            container.focus();
-        })
-        .catch(err => {
-            console.error("PDF.js loading error:", err);
-        });
 }
-
 // ------------------------------------------------------------
 // Render Pages
 // ------------------------------------------------------------
