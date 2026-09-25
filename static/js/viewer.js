@@ -8,6 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdf.worker.mjs';
 
 let pdfDoc = null;
 let isDualView = false;
+let currentScale = 1.5; // Base PDF rendering resolution scale
 
 // Safe query string extraction to catch dashboard chapter selections
 const urlParams = new URLSearchParams(window.location.search);
@@ -55,6 +56,7 @@ if (metaElement) {
             });
     }
 }
+
 // ------------------------------------------------------------
 // Render Pages
 // ------------------------------------------------------------
@@ -85,7 +87,8 @@ function renderSingleCanvas(num) {
 
     pdfDoc.getPage(num).then(page => {
 
-        const viewport = page.getViewport({ scale: 1.5 });
+        // Uses currentScale dynamically for high-DPI rendering
+        const viewport = page.getViewport({ scale: currentScale });
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -142,14 +145,14 @@ function nextPage() {
 // Buttons
 // ------------------------------------------------------------
 
-document.getElementById("prev-btn").addEventListener("click", previousPage);
-document.getElementById("next-btn").addEventListener("click", nextPage);
+document.getElementById("prev-btn")?.addEventListener("click", previousPage);
+document.getElementById("next-btn")?.addEventListener("click", nextPage);
 
 // ------------------------------------------------------------
 // View Mode
 // ------------------------------------------------------------
 
-document.getElementById("single-view-btn").addEventListener("click", e => {
+document.getElementById("single-view-btn")?.addEventListener("click", e => {
 
     isDualView = false;
     container.className = "single-page";
@@ -158,7 +161,7 @@ document.getElementById("single-view-btn").addEventListener("click", e => {
 
 });
 
-document.getElementById("dual-view-btn").addEventListener("click", e => {
+document.getElementById("dual-view-btn")?.addEventListener("click", e => {
 
     isDualView = true;
     container.className = "dual-page";
@@ -208,11 +211,11 @@ function executePageJump() {
 
 document
     .getElementById("jump-btn")
-    .addEventListener("click", executePageJump);
+    ?.addEventListener("click", executePageJump);
 
 document
     .getElementById("jump-input")
-    .addEventListener("keypress", e => {
+    ?.addEventListener("keypress", e => {
 
         if (e.key === "Enter") {
             executePageJump();
@@ -267,3 +270,23 @@ document.addEventListener("touchend", e => {
         previousPage();
     }
 }, { passive: true });
+
+// ------------------------------------------------------------
+// High-Resolution Zoom Listener
+// ------------------------------------------------------------
+
+if (container) {
+    container.addEventListener('pdf-scale-change', (e) => {
+        if (!pdfDoc) return;
+
+        // Multiply target multiplier against base scale (1.5)
+        const zoomMultiplier = e.detail.scale;
+        currentScale = 1.5 * zoomMultiplier;
+
+        // Reset CSS scaling so canvas renders at 1:1 crisp resolution
+        container.style.setProperty('--pdf-scale', 1);
+
+        // Re-render pages with updated native canvas width and height
+        renderPages();
+    });
+}
