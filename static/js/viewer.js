@@ -7,7 +7,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdf.worker.mjs';
 // ------------------------------------------------------------
 
 let pdfDoc = null;
-let isDualView = false;
+const isMobileViewport = window.matchMedia("(max-width: 700px)").matches;
+let isDualView = !isMobileViewport;
 
 // Safe query string extraction to catch dashboard chapter selections
 const urlParams = new URLSearchParams(window.location.search);
@@ -17,7 +18,10 @@ let pageNum = (!isNaN(targetPage) && targetPage > 0) ? targetPage : 1;
 const container = document.getElementById("pdf-container");
 if (container) {
     container.setAttribute("tabindex", "0");
+    container.className = isDualView ? "dual-page" : "single-page";
 }
+document.getElementById("single-view-btn").classList.toggle("active", !isDualView);
+document.getElementById("dual-view-btn").classList.toggle("active", isDualView);
 const metaElement = document.getElementById("pdf-metadata");
 
 // ------------------------------------------------------------

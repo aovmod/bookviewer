@@ -119,7 +119,7 @@
     
     <div class="zoom-group">
         <button id="zoom-out-btn" title="Zoom Out">🔍−</button>
-        <span id="zoom-level">100%</span>
+        <span id="zoom-level">50%</span>
         <button id="zoom-in-btn" title="Zoom In">🔍+</button>
         <button id="zoom-reset-btn" title="Reset Zoom">Reset</button>
     </div>
@@ -129,8 +129,8 @@
         <button id="jump-btn">Go</button>
         
         <span id="view-mode-section">
-            <button id="single-view-btn" class="active">1-Page</button>
-            <button id="dual-view-btn">2-Page</button>
+            <button id="single-view-btn">1-Page</button>
+            <button id="dual-view-btn" class="active">2-Page</button>
         </span>
     </div>
     
@@ -139,14 +139,14 @@
 
     <div id="pdf-metadata" data-url="{{ pdf_url }}" style="display: none;"></div>
 
-    <div id="pdf-container" class="single-page"></div>
+    <div id="pdf-container" class="dual-page"></div>
 
     <script type="module" src="{{ url_for('static', filename='js/viewer.js') }}"></script>
     
     <!-- Safe CSS Variable-based Zoom Control -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            let currentScale = 1.0;
+            let currentScale = window.matchMedia('(max-width: 700px)').matches ? 1.0 : 0.5;
             const step = 0.15;
             const minScale = 0.3;
             const maxScale = 2.5;
@@ -161,6 +161,8 @@
                     zoomDisplay.innerText = `${Math.round(currentScale * 100)}%`;
                 }
             }
+
+            applyZoom(currentScale);
 
             // Toolbar Button Bindings
             document.getElementById('zoom-in-btn')?.addEventListener('click', () => applyZoom(currentScale + step));
