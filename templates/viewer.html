@@ -50,8 +50,8 @@
             flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            padding: 12px 24px;
+            gap: 10px;
+            padding: 10px 20px;
             background-color: var(--surface-color);
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -68,12 +68,16 @@
             background-color: #334155;
             color: var(--text-color);
             border: 1px solid var(--border-color);
-            padding: 8px 14px;
-            font-size: 14px;
+            padding: 8px 12px;
+            font-size: 13px;
             font-weight: 500;
             border-radius: var(--radius);
             cursor: pointer;
             transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .pdf-btn:hover {
@@ -90,11 +94,11 @@
             background-color: #0f172a;
             color: var(--text-color);
             border: 1px solid var(--border-color);
-            padding: 8px 10px;
-            width: 60px;
+            padding: 8px 6px;
+            width: 72px;
             text-align: center;
             border-radius: var(--radius);
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .pdf-input:focus {
@@ -102,11 +106,11 @@
             border-color: var(--accent-color);
         }
 
-        .page-indicator {
-            font-size: 14px;
+        .page-indicator, .zoom-indicator {
+            font-size: 13px;
             color: var(--text-muted);
-            min-width: 60px;
             text-align: center;
+            white-space: nowrap;
         }
 
         /* Container & Canvas Viewport */
@@ -115,38 +119,46 @@
             overflow: auto;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
             padding: 24px;
-            gap: 20px;
+            gap: 24px;
             outline: none;
         }
 
         #pdf-container.single-page {
             flex-direction: column;
             align-items: center;
+            align-content: center;
         }
 
         #pdf-container.dual-page {
             flex-direction: row;
-            flex-wrap: wrap;
-            align-content: flex-start;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: nowrap;
         }
 
         #pdf-container canvas {
             max-width: 100%;
             height: auto !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
             border-radius: 4px;
             background-color: white;
+            object-fit: contain;
         }
 
         @media (max-width: 768px) {
             .pdf-toolbar {
-                padding: 8px 12px;
+                padding: 8px 10px;
                 justify-content: center;
             }
             #pdf-container {
-                padding: 12px;
+                padding: 10px;
+                gap: 12px;
+            }
+            /* Force single page view on mobile screens automatically */
+            #pdf-container.dual-page {
+                flex-direction: column;
             }
         }
     </style>
@@ -154,11 +166,13 @@
 <body>
 
     <!-- PDF Metadata Container injected by your Flask/Backend template engine -->
-<div id="pdf-metadata" data-url="/get-pdf/KS3book.pdf" style="display:none;"></div>
+    <div id="pdf-metadata" data-url="/get-pdf/KS3book.pdf" style="display:none;"></div>
 
     <div class="pdf-viewer-app">
         <header class="pdf-toolbar">
+            <!-- Dashboard & Navigation -->
             <div class="toolbar-group">
+                <a href="/" class="pdf-btn" title="Back to Dashboard">🏠 Dashboard</a>
                 <button id="prev-btn" class="pdf-btn" title="Previous Page">❮ Prev</button>
                 <span class="page-indicator">
                     <span id="page-num">1</span> / <span id="page-count">0</span>
@@ -166,11 +180,20 @@
                 <button id="next-btn" class="pdf-btn" title="Next Page">Next ❯</button>
             </div>
 
+            <!-- Zoom Controls -->
+            <div class="toolbar-group">
+                <button id="zoom-out-btn" class="pdf-btn" title="Zoom Out">🔍−</button>
+                <span id="zoom-level" class="zoom-indicator">100%</span>
+                <button id="zoom-in-btn" class="pdf-btn" title="Zoom In">🔍+</button>
+            </div>
+
+            <!-- View Mode -->
             <div class="toolbar-group" id="view-mode-section">
                 <button id="single-view-btn" class="pdf-btn">Single</button>
                 <button id="dual-view-btn" class="pdf-btn active">Dual</button>
             </div>
 
+            <!-- Page Jump -->
             <div class="toolbar-group">
                 <input type="number" id="jump-input" class="pdf-input" min="1" value="1">
                 <button id="jump-btn" class="pdf-btn">Go</button>
@@ -187,6 +210,7 @@
         let pdfDoc = null;
         const isMobileViewport = window.matchMedia("(max-width: 768px)").matches;
         let isDualView = !isMobileViewport;
+        let currentScale = 1.3; // Default zoom scale
 
         const urlParams = new URLSearchParams(window.location.search);
         const targetPage = parseInt(urlParams.get('page'), 10);
@@ -212,49 +236,51 @@
             }
         }
 
-      if (metaElement) {
-    const pdfUrl = metaElement.getAttribute("data-url");
+        if (metaElement) {
+            const pdfUrl = metaElement.getAttribute("data-url");
 
-    if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
-        showLoadError("viewer configuration", "No PDF URL was provided by the server.");
-    } else {
-        (async () => {
-            try {
-                // Disabling range and auto-fetch forces a full standard download, preventing 403 blocks
-                const loadingTask = pdfjsLib.getDocument({ 
-                    url: pdfUrl, 
-                    disableRange: true, 
-                    disableAutoFetch: true 
-                });
-                pdfDoc = await loadingTask.promise;
+            if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
+                showLoadError("viewer configuration", "No PDF URL was provided by the server.");
+            } else {
+                (async () => {
+                    try {
+                        const loadingTask = pdfjsLib.getDocument({ 
+                            url: pdfUrl, 
+                            disableRange: true, 
+                            disableAutoFetch: true 
+                        });
+                        pdfDoc = await loadingTask.promise;
 
-                if (pageNum > pdfDoc.numPages) {
-                    pageNum = pdfDoc.numPages;
-                }
+                        if (pageNum > pdfDoc.numPages) {
+                            pageNum = pdfDoc.numPages;
+                        }
 
-                const pageCountElem = document.getElementById("page-count");
-                if (pageCountElem) pageCountElem.textContent = pdfDoc.numPages;
+                        const pageCountElem = document.getElementById("page-count");
+                        if (pageCountElem) pageCountElem.textContent = pdfDoc.numPages;
 
-                renderPages();
-                if (container) container.focus();
-            } catch (err) {
-                const errorName = err instanceof Error ? err.name : "Error";
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
-                showLoadError(
-                    "PDF.js parsing/loading",
-                    `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
-                    `Browser: ${navigator.userAgent}\n` +
-                    `${errorName}: ${errorMessage}${errorStack}`
-                );
+                        renderPages();
+                        if (container) container.focus();
+                    } catch (err) {
+                        const errorName = err instanceof Error ? err.name : "Error";
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
+                        showLoadError(
+                            "PDF.js parsing/loading",
+                            `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
+                            `Browser: ${navigator.userAgent}\n` +
+                            `${errorName}: ${errorMessage}${errorStack}`
+                        );
+                    }
+                })();
             }
-        })();
-    }
-}
+        }
 
         function renderPages() {
             if (!pdfDoc) return;
             container.innerHTML = "";
+
+            // Adjust container class layout state
+            container.className = isDualView ? "dual-page" : "single-page";
 
             renderSingleCanvas(pageNum);
 
@@ -271,11 +297,16 @@
 
             const jumpInput = document.getElementById("jump-input");
             if (jumpInput) jumpInput.value = pageNum;
+
+            const zoomLevelElem = document.getElementById("zoom-level");
+            if (zoomLevelElem) {
+                zoomLevelElem.textContent = `${Math.round(currentScale * 100)}%`;
+            }
         }
 
         function renderSingleCanvas(num) {
             pdfDoc.getPage(num).then(page => {
-                const viewport = page.getViewport({ scale: 1.5 });
+                const viewport = page.getViewport({ scale: currentScale });
                 const canvas = document.createElement("canvas");
                 const ctx = canvas.getContext("2d");
 
@@ -317,15 +348,34 @@
             renderPages();
         }
 
+        // Zoom Functions
+        function zoomIn() {
+            if (currentScale < 3.0) {
+                currentScale += 0.2;
+                renderPages();
+            }
+        }
+
+        function zoomOut() {
+            if (currentScale > 0.6) {
+                currentScale -= 0.2;
+                renderPages();
+            }
+        }
+
         const prevBtn = document.getElementById("prev-btn");
         const nextBtn = document.getElementById("next-btn");
+        const zoomInBtn = document.getElementById("zoom-in-btn");
+        const zoomOutBtn = document.getElementById("zoom-out-btn");
+
         if (prevBtn) prevBtn.addEventListener("click", previousPage);
         if (nextBtn) nextBtn.addEventListener("click", nextPage);
+        if (zoomInBtn) zoomInBtn.addEventListener("click", zoomIn);
+        if (zoomOutBtn) zoomOutBtn.addEventListener("click", zoomOut);
 
         if (singleBtn) {
             singleBtn.addEventListener("click", e => {
                 isDualView = false;
-                container.className = "single-page";
                 toggleActiveButton(e.target);
                 renderPages();
             });
@@ -334,7 +384,6 @@
         if (dualBtn) {
             dualBtn.addEventListener("click", e => {
                 isDualView = true;
-                container.className = "dual-page";
                 toggleActiveButton(e.target);
                 renderPages();
             });
@@ -376,6 +425,14 @@
             if (e.key === "ArrowRight") {
                 e.preventDefault();
                 nextPage();
+            }
+            if (e.key === "+" || e.key === "=") {
+                e.preventDefault();
+                zoomIn();
+            }
+            if (e.key === "-") {
+                e.preventDefault();
+                zoomOut();
             }
         });
 
