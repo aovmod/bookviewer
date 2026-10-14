@@ -2,260 +2,400 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Lesson Notes Viewer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Modern PDF Viewer</title>
+    <!-- Include PDF.js from Stable CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <style>
-        /* Modern CSS Grid Layout Engine to lock viewport constraints */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        html, body {
-            width: 100%;
-            height: 100%;
-            height: 100svh; /* Locks screen size dynamically behind iOS address bars */
-            overflow: hidden;
-            font-family: -apple-system, sans-serif;
-            background-color: #525659;
-            
-            /* CSS Grid isolates the toolbar from the PDF scroll space completely */
-            display: grid;
-            grid-template-rows: auto 1fr; 
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --border-color: #334155;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --radius: 10px;
         }
 
-        #toolbar {
-            grid-row: 1; /* Always locked at the very top row */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
             display: flex;
+            flex-direction: column;
+        }
+
+        .pdf-viewer-app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* Toolbar Styling */
+        .pdf-toolbar {
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            flex-wrap: wrap; 
-            gap: 10px;
-            padding: 10px 15px;
-            /* Extra safety padding for iPhones with modern notches/dynamic islands */
-            padding-top: calc(10px + env(safe-area-inset-top, 0px)); 
-            background-color: #2c3e50;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            gap: 12px;
+            padding: 12px 24px;
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             z-index: 10;
         }
 
-        .nav-group, .action-group, .zoom-group {
+        .toolbar-group {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        button {
+        .pdf-btn {
+            background-color: #334155;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
             padding: 8px 14px;
             font-size: 14px;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
+            font-weight: 500;
+            border-radius: var(--radius);
             cursor: pointer;
-            background-color: #34495e;
-            color: white;
-            transition: background 0.2s;
-            -webkit-tap-highlight-color: transparent; 
+            transition: all 0.2s ease;
         }
 
-        button:active { background-color: #1a252f; }
-        button.active { background-color: #007bff; }
-        #back-dashboard-btn { background-color: #e74c3c; }
+        .pdf-btn:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
 
-        #jump-input {
+        .pdf-btn.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .pdf-input {
+            background-color: #0f172a;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
             width: 60px;
             text-align: center;
-            padding: 8px;
+            border-radius: var(--radius);
             font-size: 14px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: white;
         }
 
-        #page-info, #zoom-level {
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
+        .pdf-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
         }
 
-        #zoom-level {
-            min-width: 45px;
+        .page-indicator {
+            font-size: 14px;
+            color: var(--text-muted);
+            min-width: 60px;
             text-align: center;
         }
 
-        /* The PDF element stays locked in its row and CANNOT overflow outward */
+        /* Container & Canvas Viewport */
         #pdf-container {
-            grid-row: 2; 
-            width: 100%;
-            height: 100%; /* Spans exactly the remaining height of the grid row */
+            flex: 1;
             overflow: auto;
-            -webkit-overflow-scrolling: touch; 
-            display: block; 
-            text-align: center;
-            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 24px;
+            gap: 20px;
+            outline: none;
         }
 
-        /* Pure CSS variable scaling on canvas elements directly */
+        #pdf-container.single-page {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #pdf-container.dual-page {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: flex-start;
+        }
+
         #pdf-container canvas {
-            display: inline-block !important;
-            width: calc(100% * var(--pdf-scale, 1)) !important;
-            max-width: none !important;
-            height: auto !important; 
-            margin-bottom: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: width 0.15s ease-out;
+            max-width: 100%;
+            height: auto !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        @media (max-width: 768px) {
+            .pdf-toolbar {
+                padding: 8px 12px;
+                justify-content: center;
+            }
+            #pdf-container {
+                padding: 12px;
+            }
         }
     </style>
 </head>
-
 <body>
 
-<div id="toolbar">
-    <div class="nav-group">
-        <a href="{{ url_for('dashboard') }}" style="text-decoration: none;">
-            <button id="back-dashboard-btn">🏠 Home</button>
-        </a>
-        <button id="prev-btn">◀ Prev</button>
-        <button id="next-btn">Next ▶</button>
-    </div>
-    
-    <div class="zoom-group">
-        <button id="zoom-out-btn" title="Zoom Out">🔍−</button>
-        <span id="zoom-level">50%</span>
-        <button id="zoom-in-btn" title="Zoom In">🔍+</button>
-        <button id="zoom-reset-btn" title="Reset Zoom">Reset</button>
-    </div>
+    <!-- PDF Metadata Container injected by your Flask/Backend template engine -->
+    <div id="pdf-metadata" data-url="{{ pdf_url }}" style="display:none;"></div>
 
-    <div class="action-group">
-        <input type="number" id="jump-input" min="1" value="1" placeholder="Page">
-        <button id="jump-btn">Go</button>
-        
-        <span id="view-mode-section">
-            <button id="single-view-btn">1-Page</button>
-            <button id="dual-view-btn" class="active">2-Page</button>
-        </span>
-    </div>
-    
-    <span id="page-info">Page <span id="page-num">1</span> of <span id="page-count">-</span></span>
-</div>
+    <div class="pdf-viewer-app">
+        <header class="pdf-toolbar">
+            <div class="toolbar-group">
+                <button id="prev-btn" class="pdf-btn" title="Previous Page">❮ Prev</button>
+                <span class="page-indicator">
+                    <span id="page-num">1</span> / <span id="page-count">0</span>
+                </span>
+                <button id="next-btn" class="pdf-btn" title="Next Page">Next ❯</button>
+            </div>
 
-    <div id="pdf-metadata" data-url="{{ pdf_url }}" style="display: none;"></div>
+            <div class="toolbar-group" id="view-mode-section">
+                <button id="single-view-btn" class="pdf-btn">Single</button>
+                <button id="dual-view-btn" class="pdf-btn active">Dual</button>
+            </div>
 
-    <div id="pdf-container" class="dual-page">
-        <p id="viewer-startup-status" role="status" style="color:white;padding:20px;">Starting PDF viewer…</p>
+            <div class="toolbar-group">
+                <input type="number" id="jump-input" class="pdf-input" min="1" value="1">
+                <button id="jump-btn" class="pdf-btn">Go</button>
+            </div>
+        </header>
+
+        <main id="pdf-container" class="dual-page" tabindex="0">
+            Loading PDF…
+        </main>
     </div>
 
+    <!-- Viewer Application Logic Script -->
     <script>
-        (() => {
-            const container = document.getElementById("pdf-container");
+        let pdfDoc = null;
+        const isMobileViewport = window.matchMedia("(max-width: 768px)").matches;
+        let isDualView = !isMobileViewport;
 
-            window.reportViewerStartupError = (stage, details) => {
-                console.error(`PDF viewer failed during ${stage}:`, details);
-                const error = document.createElement("section");
-                error.setAttribute("role", "alert");
-                error.style.cssText = "max-width:900px;margin:20px auto;padding:16px;text-align:left;background:#fff;border:2px solid #c62828;border-radius:8px;color:#222;font:14px/1.5 monospace;white-space:pre-wrap;overflow-wrap:anywhere;";
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetPage = parseInt(urlParams.get('page'), 10);
+        let pageNum = (!isNaN(targetPage) && targetPage > 0) ? targetPage : 1;
 
-                const heading = document.createElement("strong");
-                heading.textContent = `Failed to load PDF (${stage})`;
-                error.appendChild(heading);
+        const container = document.getElementById("pdf-container");
+        if (container) {
+            container.setAttribute("tabindex", "0");
+            container.className = isDualView ? "dual-page" : "single-page";
+        }
 
-                const body = document.createElement("pre");
-                body.style.cssText = "margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;";
-                body.textContent = details;
-                error.appendChild(body);
-                container.replaceChildren(error);
-            };
+        const singleBtn = document.getElementById("single-view-btn");
+        const dualBtn = document.getElementById("dual-view-btn");
+        if (singleBtn) singleBtn.classList.toggle("active", !isDualView);
+        if (dualBtn) dualBtn.classList.toggle("active", isDualView);
 
-            window.addEventListener("unhandledrejection", event => {
-                const reason = event.reason;
-                window.reportViewerStartupError(
-                    "unhandled promise",
-                    reason instanceof Error ? `${reason.name}: ${reason.message}\n${reason.stack || ""}` : String(reason)
-                );
-            });
+        const metaElement = document.getElementById("pdf-metadata");
 
-            async function inspectModuleAsset(url) {
-                try {
-                    const response = await fetch(url, { cache: "no-store" });
-                    const contentType = response.headers.get("content-type") || "(not provided)";
-                    response.body?.cancel();
-                    return `${url}\nHTTP ${response.status} ${response.statusText}; Content-Type: ${contentType}`;
-                } catch (error) {
-                    return `${url}\nFetch failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`;
-                }
+        function showLoadError(stage, details) {
+            console.error(`[${stage}]`, details);
+            if (container) {
+                container.innerHTML = `<div style="color: #ef4444; padding: 20px; text-align: center;"><strong>Error loading viewer (${stage}):</strong><br>${details.replace(/\n/g, '<br>')}</div>`;
+            }
+        }
 
+        if (metaElement) {
+            const pdfUrl = metaElement.getAttribute("data-url");
+
+            if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
+                showLoadError("viewer configuration", "No PDF URL was provided by the server.");
+            } else {
+                (async () => {
+                    try {
+                        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+                        pdfDoc = await loadingTask.promise;
+
+                        if (pageNum > pdfDoc.numPages) {
+                            pageNum = pdfDoc.numPages;
+                        }
+
+                        const pageCountElem = document.getElementById("page-count");
+                        if (pageCountElem) pageCountElem.textContent = pdfDoc.numPages;
+
+                        renderPages();
+                        if (container) container.focus();
+                    } catch (err) {
+                        const errorName = err instanceof Error ? err.name : "Error";
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
+                        showLoadError(
+                            "PDF.js parsing/loading",
+                            `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
+                            `Browser: ${navigator.userAgent}\n` +
+                            `${errorName}: ${errorMessage}${errorStack}`
+                        );
+                    }
+                })();
+            }
+        }
+
+        function renderPages() {
+            if (!pdfDoc) return;
+            container.innerHTML = "";
+
+            renderSingleCanvas(pageNum);
+
+            if (isDualView && pageNum + 1 <= pdfDoc.numPages) {
+                renderSingleCanvas(pageNum + 1);
             }
 
-            async function loadViewer() {
-                const moduleUrl = {{ url_for('static', filename='js/viewer.js')|tojson }};
-                try {
-                    await import(moduleUrl);
-                    document.getElementById("viewer-startup-status")?.remove();
-                } catch (error) {
-                    const errorName = error instanceof Error ? error.name : "Error";
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    const errorStack = error instanceof Error && error.stack ? `\n\nStack:\n${error.stack}` : "";
-                    const assetUrls = [
-                        moduleUrl,
-                        {{ url_for('static', filename='js/pdf.mjs')|tojson }},
-                        {{ url_for('static', filename='js/pdf.worker.mjs')|tojson }}
-                    ];
-                    const assetDetails = await Promise.all(assetUrls.map(inspectModuleAsset));
-
-                    window.reportViewerStartupError(
-                        "viewer module startup",
-                        `Browser: ${navigator.userAgent}\n` +
-                        `${errorName}: ${errorMessage}${errorStack}\n\n` +
-                        `Module asset checks:\n${assetDetails.join("\n\n")}`
-                    );
-                }
+            const pageNumElem = document.getElementById("page-num");
+            if (pageNumElem) {
+                pageNumElem.textContent = (isDualView && pageNum + 1 <= pdfDoc.numPages)
+                    ? `${pageNum}-${pageNum + 1}`
+                    : pageNum;
             }
 
-            loadViewer();
-        })();
-    </script>
-    
-    <!-- Safe CSS Variable-based Zoom Control -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let currentScale = window.matchMedia('(max-width: 700px)').matches ? 1.0 : 0.5;
-            const step = 0.15;
-            const minScale = 0.3;
-            const maxScale = 2.5;
+            const jumpInput = document.getElementById("jump-input");
+            if (jumpInput) jumpInput.value = pageNum;
+        }
 
-            const container = document.getElementById('pdf-container');
-            const zoomDisplay = document.getElementById('zoom-level');
+        function renderSingleCanvas(num) {
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
 
-            function applyZoom(scale) {
-                currentScale = Math.min(Math.max(scale, minScale), maxScale);
-                container.style.setProperty('--pdf-scale', currentScale);
-                if (zoomDisplay) {
-                    zoomDisplay.innerText = `${Math.round(currentScale * 100)}%`;
-                }
+                const outputScale = window.devicePixelRatio || 1;
+
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                
+                canvas.style.width = Math.floor(viewport.width) + "px";
+                canvas.style.height = Math.floor(viewport.height) + "px";
+
+                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+
+                container.appendChild(canvas);
+
+                page.render({
+                    canvasContext: ctx,
+                    viewport: viewport,
+                    transform: transform
+                });
+            });
+        }
+
+        function previousPage() {
+            if (!pdfDoc || pageNum <= 1) return;
+            pageNum -= isDualView ? 2 : 1;
+            if (pageNum < 1) pageNum = 1;
+            renderPages();
+        }
+
+        function nextPage() {
+            if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+            const step = isDualView ? 2 : 1;
+            if (pageNum + step <= pdfDoc.numPages) {
+                pageNum += step;
+            } else {
+                pageNum = pdfDoc.numPages;
             }
+            renderPages();
+        }
 
-            applyZoom(currentScale);
+        const prevBtn = document.getElementById("prev-btn");
+        const nextBtn = document.getElementById("next-btn");
+        if (prevBtn) prevBtn.addEventListener("click", previousPage);
+        if (nextBtn) nextBtn.addEventListener("click", nextPage);
 
-            // Toolbar Button Bindings
-            document.getElementById('zoom-in-btn')?.addEventListener('click', () => applyZoom(currentScale + step));
-            document.getElementById('zoom-out-btn')?.addEventListener('click', () => applyZoom(currentScale - step));
-            document.getElementById('zoom-reset-btn')?.addEventListener('click', () => applyZoom(1.0));
-
-            // View Mode Syncing
-            document.getElementById('dual-view-btn')?.addEventListener('click', () => {
-                applyZoom(0.5); // Automatically sets zoom to 50% for 2-Page mode
+        if (singleBtn) {
+            singleBtn.addEventListener("click", e => {
+                isDualView = false;
+                container.className = "single-page";
+                toggleActiveButton(e.target);
+                renderPages();
             });
+        }
 
-            document.getElementById('single-view-btn')?.addEventListener('click', () => {
-                applyZoom(1.0); // Resets zoom to 100% for 1-Page mode
+        if (dualBtn) {
+            dualBtn.addEventListener("click", e => {
+                isDualView = true;
+                container.className = "dual-page";
+                toggleActiveButton(e.target);
+                renderPages();
             });
+        }
 
-            // Optional Ctrl + Mouse Wheel shortcut
-            container.addEventListener('wheel', (e) => {
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    applyZoom(e.deltaY < 0 ? currentScale + step : currentScale - step);
-                }
-            }, { passive: false });
+        function toggleActiveButton(target) {
+            document.querySelectorAll("#view-mode-section button").forEach(button => button.classList.remove("active"));
+            target.classList.add("active");
+        }
+
+        function executePageJump() {
+            if (!pdfDoc) return;
+            let targetPage = parseInt(document.getElementById("jump-input").value, 10);
+
+            if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
+            if (targetPage > pdfDoc.numPages) targetPage = pdfDoc.numPages;
+
+            pageNum = targetPage;
+            document.getElementById("jump-input").value = pageNum;
+            renderPages();
+        }
+
+        const jumpBtn = document.getElementById("jump-btn");
+        const jumpInput = document.getElementById("jump-input");
+
+        if (jumpBtn) jumpBtn.addEventListener("click", executePageJump);
+        if (jumpInput) {
+            jumpInput.addEventListener("keypress", e => {
+                if (e.key === "Enter") executePageJump();
+            });
+        }
+
+        document.addEventListener("keydown", e => {
+            if (!pdfDoc) return;
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                previousPage();
+            }
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                nextPage();
+            }
         });
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.addEventListener("touchstart", e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        document.addEventListener("touchend", e => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (!pdfDoc) return;
+
+            const diff = touchStartX - touchEndX;
+            const threshold = 60;
+
+            if (Math.abs(diff) < threshold) return;
+
+            if (diff > 0) {
+                nextPage();
+            } else {
+                previousPage();
+            }
+        }, { passive: true });
     </script>
 </body>
 </html>
