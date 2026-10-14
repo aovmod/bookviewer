@@ -55,7 +55,11 @@ if (metaElement) {
             })
             .catch(err => {
                 console.error("PDF.js loading error:", err);
-                container.innerHTML = `<p style="color:red;text-align:center;padding:20px;">Failed to load PDF asset.</p>`;
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                const error = document.createElement("p");
+                error.style.cssText = "color:red;text-align:center;padding:20px;";
+                error.textContent = `Failed to load PDF asset: ${errorMessage}`;
+                container.replaceChildren(error);
             });
     }
 }

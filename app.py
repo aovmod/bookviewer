@@ -1,6 +1,9 @@
+import mimetypes
 import os
 from flask import Flask, render_template, url_for, abort, request
 from pypdf import PdfReader
+
+mimetypes.add_type('text/javascript', '.mjs')
 
 app = Flask(__name__)
 
