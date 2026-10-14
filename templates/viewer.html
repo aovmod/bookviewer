@@ -139,8 +139,76 @@
 
     <div id="pdf-metadata" data-url="{{ pdf_url }}" style="display: none;"></div>
 
-    <div id="pdf-container" class="dual-page"></div>
+    <div id="pdf-container" class="dual-page">
+        <p id="viewer-startup-status" role="status" style="color:white;padding:20px;">Starting PDF viewer…</p>
+    </div>
 
+    <script>
+        (() => {
+            const container = document.getElementById("pdf-container");
+            let moduleStarted = false;
+
+            window.reportViewerStartupError = (stage, details) => {
+                console.error(`PDF viewer failed during ${stage}:`, details);
+                const error = document.createElement("section");
+                error.setAttribute("role", "alert");
+                error.style.cssText = "max-width:900px;margin:20px auto;padding:16px;text-align:left;background:#fff;border:2px solid #c62828;border-radius:8px;color:#222;font:14px/1.5 monospace;white-space:pre-wrap;overflow-wrap:anywhere;";
+
+                const heading = document.createElement("strong");
+                heading.textContent = `Failed to load PDF (${stage})`;
+                error.appendChild(heading);
+
+                const body = document.createElement("pre");
+                body.style.cssText = "margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;";
+                body.textContent = details;
+                error.appendChild(body);
+                container.replaceChildren(error);
+            };
+
+            window.viewerModuleStarted = () => {
+                moduleStarted = true;
+                document.getElementById("viewer-startup-status")?.remove();
+            };
+
+            document.addEventListener("error", event => {
+                const target = event.target;
+                if (target instanceof HTMLScriptElement && target.type === "module") {
+                    window.reportViewerStartupError(
+                        "viewer module startup",
+                        `The browser could not load or execute:\n${target.src}\n` +
+                        "Check that this URL is reachable and that the server returns a JavaScript MIME type."
+                    );
+                }
+            }, true);
+
+            window.addEventListener("error", event => {
+                if (!moduleStarted) return;
+                window.reportViewerStartupError(
+                    "JavaScript runtime",
+                    `${event.message || "Unknown JavaScript error"}\n` +
+                    `File: ${event.filename || "(unknown)"}\nLine: ${event.lineno || "(unknown)"}\n` +
+                    `Column: ${event.colno || "(unknown)"}`
+                );
+            });
+
+            window.addEventListener("unhandledrejection", event => {
+                const reason = event.reason;
+                window.reportViewerStartupError(
+                    "unhandled promise",
+                    reason instanceof Error ? `${reason.name}: ${reason.message}\n${reason.stack || ""}` : String(reason)
+                );
+            });
+
+            window.setTimeout(() => {
+                if (!moduleStarted) {
+                    window.reportViewerStartupError(
+                        "viewer module startup",
+                        "The PDF viewer module did not start within 15 seconds. The browser may have blocked the module or failed to load one of its dependencies."
+                    );
+                }
+            }, 15000);
+        })();
+    </script>
     <script type="module" src="{{ url_for('static', filename='js/viewer.js') }}"></script>
     
     <!-- Safe CSS Variable-based Zoom Control -->

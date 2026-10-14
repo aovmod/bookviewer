@@ -1,6 +1,7 @@
 import * as pdfjsLib from '/static/js/pdf.mjs';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdf.worker.mjs';
+window.viewerModuleStarted?.();
 
 // ------------------------------------------------------------
 // Application State & URL Parsing (Unified)
@@ -24,6 +25,40 @@ document.getElementById("single-view-btn").classList.toggle("active", !isDualVie
 document.getElementById("dual-view-btn").classList.toggle("active", isDualView);
 const metaElement = document.getElementById("pdf-metadata");
 
+function showLoadError(stage, details) {
+    window.reportViewerStartupError(stage, details);
+}
+
+async function checkPdfAsset(pdfUrl) {
+    let response;
+    try {
+        response = await fetch(pdfUrl, { method: "HEAD", cache: "no-store" });
+    } catch (err) {
+        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        throw new Error(`Could not contact the PDF URL.\n${message}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "(not provided)";
+    const contentLength = response.headers.get("content-length") || "(not provided)";
+    if (!response.ok) {
+        throw new Error(
+            `HTTP ${response.status} ${response.statusText}\n` +
+            `Content-Type: ${contentType}\n` +
+            `URL: ${response.url || pdfUrl}`
+        );
+    }
+    if (!contentType.toLowerCase().includes("application/pdf")) {
+        throw new Error(
+            `The server returned HTTP ${response.status}, but the response is not a PDF.\n` +
+            `Content-Type: ${contentType}\n` +
+            `Content-Length: ${contentLength}\n` +
+            `URL: ${response.url || pdfUrl}`
+        );
+    }
+
+    return `HTTP ${response.status}\nContent-Type: ${contentType}\nContent-Length: ${contentLength}`;
+}
+
 // ------------------------------------------------------------
 // Load PDF
 // ------------------------------------------------------------
@@ -34,33 +69,43 @@ if (metaElement) {
     console.log("PDF URL:", pdfUrl);
 
     if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
-        container.innerHTML = `
-            <p style="color:red;text-align:center;padding:20px;">
-                No PDF URL was provided.
-            </p>
-        `;
+        showLoadError("viewer configuration", "No PDF URL was provided by the server.");
     } else {
-        pdfjsLib.getDocument({ url: pdfUrl }).promise
-            .then(pdf => {
-                pdfDoc = pdf;
-                
-                // Safety check: ensure target page doesn't exceed total pages
+        container.textContent = "Checking PDF asset…";
+        (async () => {
+            let assetResponse;
+            try {
+                assetResponse = await checkPdfAsset(pdfUrl);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                showLoadError("PDF HTTP check", `URL: ${new URL(pdfUrl, window.location.href).href}\n${message}`);
+                return;
+            }
+
+            container.textContent = "Loading PDF…";
+            try {
+                pdfDoc = await pdfjsLib.getDocument({ url: pdfUrl }).promise;
+
                 if (pageNum > pdfDoc.numPages) {
                     pageNum = pdfDoc.numPages;
                 }
-                
+
                 document.getElementById("page-count").textContent = pdfDoc.numPages;
                 renderPages();
                 if (container) container.focus();
-            })
-            .catch(err => {
-                console.error("PDF.js loading error:", err);
+            } catch (err) {
+                const errorName = err instanceof Error ? err.name : "Error";
                 const errorMessage = err instanceof Error ? err.message : String(err);
-                const error = document.createElement("p");
-                error.style.cssText = "color:red;text-align:center;padding:20px;";
-                error.textContent = `Failed to load PDF asset: ${errorMessage}`;
-                container.replaceChildren(error);
-            });
+                const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
+                showLoadError(
+                    "PDF.js parsing/loading",
+                    `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
+                    `PDF server response:\n${assetResponse}\n` +
+                    `Browser: ${navigator.userAgent}\n` +
+                    `${errorName}: ${errorMessage}${errorStack}`
+                );
+            }
+        })();
     }
 }
 // ------------------------------------------------------------
