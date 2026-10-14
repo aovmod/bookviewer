@@ -1,7 +1,6 @@
-import * as pdfjsLib from '/static/js/pdf.mjs';
+import * as pdfjsLib from './pdf.mjs';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdf.worker.mjs';
-window.viewerModuleStarted?.();
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', import.meta.url).href;
 
 // ------------------------------------------------------------
 // Application State & URL Parsing (Unified)
