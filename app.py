@@ -54,6 +54,15 @@ def get_pdf_chapters(file_path):
         print(f"Could not parse outline for {file_path}: {e}")
     return chapters
 
+
+
+@app.route('/get-pdf/<path:filename>')
+def get_pdf(filename):
+    safe_path = os.path.join(app.root_path, 'static', 'lesson_notes')
+    if not os.path.exists(os.path.join(safe_path, filename)):
+        abort(404)
+    return send_from_directory(safe_path, filename, mimetype='application/pdf')
+
 @app.route('/')
 def dashboard():
     if not os.path.exists(NOTES_DIR):
