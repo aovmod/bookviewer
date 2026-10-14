@@ -56,12 +56,20 @@ def get_pdf_chapters(file_path):
 
 
 
+import os
+from flask import send_from_directory, abort, current_app
+
 @app.route('/get-pdf/<path:filename>')
 def get_pdf(filename):
-    safe_path = os.path.join(app.root_path, 'static', 'lesson_notes')
-    if not os.path.exists(os.path.join(safe_path, filename)):
-        abort(404)
-    return send_from_directory(safe_path, filename, mimetype='application/pdf')
+    # Points directly to the static/lesson_notes folder
+    directory = os.path.join(current_app.root_path, 'static', 'lesson_notes')
+    
+    # Security check to make sure file exists
+    file_path = os.path.join(directory, filename)
+    if not os.path.exists(file_path):
+        abort(404, description="PDF file not found")
+        
+    return send_from_directory(directory, filename, mimetype='application/pdf')
 
 @app.route('/')
 def dashboard():
