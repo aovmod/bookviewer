@@ -212,40 +212,45 @@
             }
         }
 
-        if (metaElement) {
-            const pdfUrl = metaElement.getAttribute("data-url");
+      if (metaElement) {
+    const pdfUrl = metaElement.getAttribute("data-url");
 
-            if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
-                showLoadError("viewer configuration", "No PDF URL was provided by the server.");
-            } else {
-                (async () => {
-                    try {
-                        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
-                        pdfDoc = await loadingTask.promise;
+    if (!pdfUrl || pdfUrl === "None" || pdfUrl === "null") {
+        showLoadError("viewer configuration", "No PDF URL was provided by the server.");
+    } else {
+        (async () => {
+            try {
+                // Disabling range and auto-fetch forces a full standard download, preventing 403 blocks
+                const loadingTask = pdfjsLib.getDocument({ 
+                    url: pdfUrl, 
+                    disableRange: true, 
+                    disableAutoFetch: true 
+                });
+                pdfDoc = await loadingTask.promise;
 
-                        if (pageNum > pdfDoc.numPages) {
-                            pageNum = pdfDoc.numPages;
-                        }
+                if (pageNum > pdfDoc.numPages) {
+                    pageNum = pdfDoc.numPages;
+                }
 
-                        const pageCountElem = document.getElementById("page-count");
-                        if (pageCountElem) pageCountElem.textContent = pdfDoc.numPages;
+                const pageCountElem = document.getElementById("page-count");
+                if (pageCountElem) pageCountElem.textContent = pdfDoc.numPages;
 
-                        renderPages();
-                        if (container) container.focus();
-                    } catch (err) {
-                        const errorName = err instanceof Error ? err.name : "Error";
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
-                        showLoadError(
-                            "PDF.js parsing/loading",
-                            `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
-                            `Browser: ${navigator.userAgent}\n` +
-                            `${errorName}: ${errorMessage}${errorStack}`
-                        );
-                    }
-                })();
+                renderPages();
+                if (container) container.focus();
+            } catch (err) {
+                const errorName = err instanceof Error ? err.name : "Error";
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                const errorStack = err instanceof Error && err.stack ? `\n\nStack:\n${err.stack}` : "";
+                showLoadError(
+                    "PDF.js parsing/loading",
+                    `URL: ${new URL(pdfUrl, window.location.href).href}\n` +
+                    `Browser: ${navigator.userAgent}\n` +
+                    `${errorName}: ${errorMessage}${errorStack}`
+                );
             }
-        }
+        })();
+    }
+}
 
         function renderPages() {
             if (!pdfDoc) return;
